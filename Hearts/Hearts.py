@@ -1,10 +1,10 @@
-import random, subprocess
+import random, subprocess, sys
 
 class Hearts:
 
-    def __init__(self, player1, player2, player3, player4):
-        self.pd = {0:player1, 1:player2, 2:player3, 3:player4}
-        self.players = [player1, player2, player3, player4]
+    def __init__(self, players):
+        self.pd = {0:players[0], 1:players[1], 2:players[2], 3:players[3]}
+        self.players = players
         for i, p in enumerate(self.players):
             p.pid = i
             p.game = self
@@ -81,7 +81,9 @@ class Hearts:
         for p in range(4):
             scores.append(self.pd[(pid+p)%4])
         return scores
-    
+   
+   def get_played_cards(self):
+       return played_cards[:]
     
 class Player:
     def playable(self, board):
@@ -101,6 +103,9 @@ class Player:
                 return matching
             else:
                 return self.hand
+    
+    def viewscores(self):
+        return self.game.get_score(self.pid)
     
 class BasicPlayer(Player):
     def __init__(self, name):
@@ -130,16 +135,19 @@ class BasicPlayer(Player):
 
     def play(self, board):
         p = self.playable(board)
-        return p[0]
-        '''if self.game.round_num == 1:
+        #On first round, play liberally and get rid of a high card
+        if self.game.round_num == 1:
             return p.sort(key = lambda x: self.game.heirarchy[x[0]])[-1]
+        #If you have a card of the leading suit, play the lowest card you have of that suit
         elif p[0][1] == self.game.leading:
             return p.sort(key = lambda x: self.game.heirarchy[x[0]])[0]
+        #If you do not have a card of the leading suit, try getting rid of the QS, then hearts, then other high cards
         else:
             if 'QS' in self.hand:
                 return 'QS'
+            if len([1 if c[1] == 'H' for c in p])>0:
+                return filter(lambda x: x[1] == 'H', p.sort(key = lambda x: self.game.heirarchy[x[0]]))[-1]
             return p.sort(key = lambda x: self.game.heirarchy[x[0]])[-1]
-            #if len([1 if c[1] == 'H' for c in p])>0'''
 
 
 class HumanPlayer(Player):
@@ -169,7 +177,7 @@ class HumanPlayer(Player):
             passing=[]
             while len(passing) < 3:
                 print('Your cards are '+str(self.hand))
-                passing.extend(raw_input('Which cards do you want to pass? ').strip().upper().split(','))
+                passing.extend(raw_input('Which cards do you want to pass? ').strip().upper().split(', '))
                 #TODO: Check validity
             return passing[:3]
         return self.hand[:3]
@@ -187,5 +195,11 @@ class HumanPlayer(Player):
             print('Invalid selection. Choose another.')
     
 if __name__ == '__main__':
-    h = Hearts(HumanPlayer('Kai'), BasicPlayer('Comp1'), HumanPlayer('Ari'), BasicPlayer('Comp2'))
+    AI_players = sys.argv[1:]
+    players = []
+    for p in AI_players:
+        players.append(__import__(p.strip('.py')).AIPlayer(p.strip('.py')))
+    for unassigned_players in range(4-len(AI_players)):
+        players.append(BasicPlayer('BasicPlayer #'+str(unassigned_players+1)))
+    h = Hearts(players)
     h.play()
